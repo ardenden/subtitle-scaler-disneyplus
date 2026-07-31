@@ -97,6 +97,10 @@ each one. That's the fast path to re-tuning `cueRejection()` without DevTools.
 
 Settings live in `chrome.storage.sync` and apply live — no reload.
 
+## License
+
+MIT — see [LICENSE](LICENSE).
+
 ### Dropped: Raise and Weight
 
 Cut, restored once with two genuine bugs fixed, then cut for good — the restored
