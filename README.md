@@ -137,6 +137,36 @@ each one. That's the fast path to re-tuning `cueRejection()` without DevTools.
 
 Settings live in `chrome.storage.sync` and apply live — no reload.
 
+## Publishing
+
+Not published. Paused over the Chrome Web Store's one-time $5 USD developer
+registration fee, not over anything in the code.
+
+Before uploading:
+
+- [ ] **Rename.** `"Subtitle Scaler for Disney+"` puts a trademark in the
+      extension title, which the Web Store branding policy disallows without
+      authorisation. Use a neutral `name` and mention Disney+ in the
+      `description` instead. Most likely cause of a rejected review.
+- [ ] **Replace the icons.** `icons/*.png` are crude placeholders — a dark
+      square with two bars — generated to fill the manifest.
+- [ ] **Pick a version.** `0.1.0` is accurate; `1.0.0` is conventional for a
+      first release.
+- [ ] **Zip with `manifest.json` at the root**, not nested in a folder. Exclude
+      `.git/` and `test/`. Nesting is the classic first-upload rejection.
+
+Then, at the [Developer Dashboard](https://chrome.google.com/webstore/devconsole):
+pay the fee (identity verification may add a day or two), upload, and complete
+the listing — description, category (Accessibility fits better than
+Entertainment), at least one 1280×800 or 640×400 screenshot, a single-purpose
+statement, a one-line justification for each of `storage`, `activeTab` and the
+disneyplus.com host permission, and the privacy declaration. That last one is
+easy to certify: the extension makes no network requests and collects nothing.
+
+[Firefox Add-ons](https://addons.mozilla.org) is free to publish and needs only
+a `browser_specific_settings.gecko.id` block added to the manifest — the obvious
+route if the fee stays unappealing.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
