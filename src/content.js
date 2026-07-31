@@ -55,6 +55,16 @@
 
   const ROOTS_TTL_MS = 500; // shadow-root memo lifetime
   const FULL_SCAN_MS = 1000; // floor between full-document cue sweeps
+  const MAX_CUE_LINES = 5; // more than this isn't a caption, it's a panel
+
+  /**
+   * Only act on a playback page. The Disney+ homepage autoplays a hero trailer,
+   * which is a perfectly good <video> as far as detection is concerned — so
+   * without this the surrounding UI text gets treated as captions.
+   */
+  function onWatchPage() {
+    return /\/(watch|video|play)(\/|$)/.test(location.pathname);
+  }
 
   /* ---------------------------------------------------------------- video */
 
@@ -206,7 +216,21 @@
     if (cy > box.bottom) return 'below-video';
 
     if (isPlayerChrome(el)) return 'player-chrome';
+    // Last, because it's the most expensive check and by here few candidates
+    // remain. Captions never scroll; episode lists and detail panels do.
+    if (inScrollable(el)) return 'scrollable';
     return null;
+  }
+
+  /** Overlay panels — the episodes pull-up, details — scroll. Captions don't. */
+  function inScrollable(el, levels = 6) {
+    let node = el;
+    for (let i = 0; i < levels && node && node !== document.body; i++) {
+      const cs = getComputedStyle(node);
+      if (/auto|scroll/.test(cs.overflowY) || /auto|scroll/.test(cs.overflowX)) return true;
+      node = node.parentElement;
+    }
+    return false;
   }
 
   function describe(el, reason) {
@@ -342,6 +366,14 @@
           }
         }
       }
+    }
+
+    // A caption is a few lines. Anything yielding more is a panel that slipped
+    // through — reject it wholesale and drop the learned root, or the cheap
+    // path will keep re-stamping it every frame.
+    if (found.filter((el) => isOutermost(el, found)).length > MAX_CUE_LINES) {
+      cueRoot = null;
+      return [];
     }
     return found;
   }
@@ -536,6 +568,14 @@
 
   function sweep() {
     sweepQueued = false;
+
+    if (!onWatchPage()) {
+      if (stamped.size) clearStamps();
+      status.path = 'off';
+      status.cueCount = 0;
+      return;
+    }
+
     const current = currentVideo();
     if (current !== video) {
       video = current;

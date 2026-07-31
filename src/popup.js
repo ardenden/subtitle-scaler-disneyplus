@@ -126,6 +126,9 @@ async function showStatus() {
     } else if (res.path === 'native') {
       el.textContent = `Native cues · ${res.fontPx}px`;
       el.className = 'status ok';
+    } else if (res.path === 'off') {
+      el.textContent = 'Not a playback page';
+      el.className = 'status';
     } else {
       el.textContent = 'Waiting for captions…';
       el.className = 'status warn';

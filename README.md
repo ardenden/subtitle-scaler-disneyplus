@@ -69,6 +69,22 @@ Bugs found during real use, all fixed:
   the letterbox bar were rejected as `below-video`. Now filtered against the
   video element rect; the image box is still what drives sizing.
 
+### Guards against false positives
+
+Detection looks for text over the video, which UI that overlays the player also
+satisfies. Three guards, in order of how much they catch:
+
+1. **Watch pages only.** The homepage autoplays a hero trailer, and a `<video>`
+   is a `<video>` — so the surrounding UI text was being treated as captions.
+   `onWatchPage()` gates the whole sweep.
+2. **Nothing inside a scrollable ancestor.** The episodes pull-up and details
+   panels scroll; captions never do. Checked last in `cueRejection()`, since
+   it's the most expensive test and few candidates reach it.
+3. **At most `MAX_CUE_LINES` lines.** More than a handful means a panel slipped
+   through. The learned `cueRoot` is dropped too — otherwise the cheap per-frame
+   path keeps re-stamping it, which is why panel text *stuck* while homepage
+   text corrected itself after a second.
+
 ### Still worth checking
 
 1. **False positives** — anything *other* than captions changing size (a title
