@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Subtitle Scaler for Disney+",
+  "version": "0.1.0",
+  "description": "Scales Disney+ subtitles relative to the video image, so they stay readable at any window or screen size.",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["https://*.disneyplus.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://*.disneyplus.com/*"],
+      "js": ["src/content.js"],
+      "css": ["src/subtitles.css"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "action": {
+    "default_popup": "src/popup.html",
+    "default_title": "Subtitle Scaler"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

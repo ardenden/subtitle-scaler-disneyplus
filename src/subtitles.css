@@ -1,0 +1,47 @@
+/*
+ * Author stylesheet with !important — this is what beats the player's inline
+ * font-size. Selectors are our own stamped attributes, so nothing here depends
+ * on Disney+ class names.
+ */
+
+[data-subscale-cue],
+[data-subscale-cue] * {
+  font-size: var(--subscale-size, inherit) !important;
+  line-height: 1.25 !important;
+  text-shadow: var(--subscale-shadow, none) !important;
+}
+
+[data-subscale-cue] {
+  white-space: normal !important;
+  max-width: 92%;
+}
+
+/* Present on every outermost cue, including at 0 opacity — the variable
+   resolves to `transparent` there, which is what actually suppresses the
+   player's own background box. */
+[data-subscale-cue][data-subscale-bg] {
+  background-color: var(--subscale-bg, transparent) !important;
+  padding: 0.08em 0.32em !important;
+  border-radius: 0.12em !important;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* One background box, not one per nested <span> in an italicised line. */
+[data-subscale-cue][data-subscale-bg] * {
+  background-color: transparent !important;
+}
+
+/* The player's own background box, painted on a wrapper between the text and
+   the region, would sit behind ours and make the opacity slider look dead. */
+[data-subscale-clear] {
+  background-color: transparent !important;
+}
+
+/* Stop a fixed-height caption region from clipping text once it grows. */
+[data-subscale-region] {
+  height: auto !important;
+  max-height: none !important;
+  overflow: visible !important;
+}
+
