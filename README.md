@@ -27,7 +27,9 @@ image** instead, and keeps them there across resize, fullscreen, and cue changes
   box from `videoWidth/videoHeight` and a `ResizeObserver` drives a CSS variable.
 - **Both caption paths.** DOM-rendered TTML cues get full styling; native
   `<track>` cues fall back to a generated `::cue` stylesheet (a much more limited
-  property set — that's a platform constraint, not an oversight).
+  property set — that's a platform constraint, not an oversight). Disney+ uses
+  the DOM path, so the native fallback is exercised by
+  [test/native-track.html](test/native-track.html) instead.
 
 ## Status
 
@@ -92,9 +94,7 @@ satisfies. Three guards, in order of how much they catch:
    lower-40%-of-video position filter.
 2. **Letterboxed film, windowed → fullscreen** — confirms sizing tracks the
    image box rather than the element box.
-3. **Native `<track>` path** — untested. Needs a title that uses it; unclear
-   which regions/titles do.
-4. **Deploy resilience** — the real test is whether detection survives Disney+
+3. **Deploy resilience** — the real test is whether detection survives Disney+
    shipping a new player build.
 
 ### Cost during playback

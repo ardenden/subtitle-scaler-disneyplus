@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Native &lt;track&gt; path test</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #000;
+        color: #ccc;
+        font: 13px system-ui, sans-serif;
+      }
+      main {
+        height: 100%;
+        display: grid;
+        place-items: center;
+        gap: 16px;
+        grid-template-rows: 1fr auto;
+        padding: 24px;
+        box-sizing: border-box;
+      }
+      video {
+        width: min(960px, 100%);
+        background: #111;
+      }
+      p {
+        max-width: 60ch;
+        text-align: center;
+        opacity: 0.7;
+      }
+      code {
+        color: #7fd3ff;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <video id="v" autoplay muted playsinline></video>
+      <p>
+        The captions below are rendered by the browser via <code>::cue</code>, not by this page —
+        there is no caption text in the DOM to find. The extension popup should read
+        <code>Native cues</code>, and the Size slider should resize this text.
+      </p>
+    </main>
+
+    <script>
+      // A canvas stream is a real MediaStream, so the <video> reports a size,
+      // plays, and advances currentTime — everything cue rendering needs,
+      // without shipping a media file.
+      const canvas = document.createElement('canvas');
+      canvas.width = 1280;
+      canvas.height = 720;
+      const ctx = canvas.getContext('2d');
+
+      let t = 0;
+      (function draw() {
+        t += 0.01;
+        const g = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        g.addColorStop(0, `hsl(${(t * 30) % 360} 55% 28%)`);
+        g.addColorStop(1, `hsl(${(t * 30 + 80) % 360} 55% 10%)`);
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(255,255,255,.22)';
+        ctx.font = '600 44px system-ui, sans-serif';
+        ctx.fillText('native <track> test pattern', 56, 92);
+        requestAnimationFrame(draw);
+      })();
+
+      const video = document.getElementById('v');
+      video.srcObject = canvas.captureStream(30);
+      video.play().catch(() => {});
+
+      // addTextTrack() puts a track in video.textTracks exactly as a <track>
+      // element would, which is what hasNativeCues() looks for.
+      const track = video.addTextTrack('subtitles', 'English', 'en');
+      track.mode = 'showing';
+
+      const lines = [
+        'This cue is drawn by the browser, not the page.',
+        'CAPTAIN: Size should change this text.',
+        'Third line, so wrapping and spacing are visible too.',
+      ];
+
+      let i = 0;
+      // Re-added on a short cycle spanning the current time, so a cue is always
+      // active regardless of how the MediaStream clock behaves.
+      setInterval(() => {
+        while (track.cues && track.cues.length) track.removeCue(track.cues[0]);
+        const now = video.currentTime || 0;
+        track.addCue(new VTTCue(Math.max(0, now - 1), now + 3, lines[i++ % lines.length]));
+      }, 2000);
+    </script>
+  </body>
+</html>
