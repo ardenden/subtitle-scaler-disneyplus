@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Screenshot rig</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #05070c;
+        color: #c8cede;
+        font: 13px system-ui, sans-serif;
+        overflow: hidden;
+      }
+
+      #stage {
+        /* Exactly the Chrome Web Store's large screenshot size, so a region
+           capture of this box needs no rescaling. */
+        width: 1280px;
+        height: 800px;
+        position: relative;
+        margin: 12px auto;
+        outline: 1px solid #2a3350;
+        overflow: hidden;
+      }
+      body.clean #stage {
+        margin: 0;
+        outline: none;
+      }
+      body.clean #ui {
+        display: none;
+      }
+
+      .player {
+        position: absolute;
+        inset: 0;
+        background: #000;
+      }
+      .video-wrap {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+      }
+      video {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        background: #000;
+      }
+
+      /* Deliberately nested a few levels below .player, matching the shape the
+         extension's isPlayerChrome() walk expects: a caption's near ancestors
+         hold layout elements, never the <video> or controls. */
+      .caption-layer {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 6%;
+        pointer-events: none;
+      }
+      .caption-block {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+      }
+      .caption-line {
+        text-align: center;
+        max-width: 80%;
+      }
+      /* Inline font-size is set from JS to imitate the player writing its own
+         px value — that's what the extension has to override, and what the
+         "before" screenshot should show. */
+      .cue {
+        color: #fff;
+        background: rgba(0, 0, 0, 0.55);
+        padding: 0.1em 0.4em;
+        font-family: Arial, Helvetica, sans-serif;
+        line-height: 1.3;
+      }
+      .cue i {
+        font-style: italic;
+      }
+
+      #ui {
+        width: 1280px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr 1fr auto;
+        gap: 10px 16px;
+        align-items: end;
+      }
+      label {
+        display: block;
+        font-size: 11px;
+        opacity: 0.65;
+        margin-bottom: 3px;
+      }
+      textarea,
+      input[type='text'],
+      input[type='number'] {
+        width: 100%;
+        box-sizing: border-box;
+        background: #10151f;
+        color: #e8ebf2;
+        border: 1px solid #26304a;
+        border-radius: 6px;
+        padding: 6px 8px;
+        font: inherit;
+      }
+      textarea {
+        height: 56px;
+        resize: vertical;
+      }
+      .row {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+      }
+      button {
+        background: #1b2340;
+        color: #dbe2f5;
+        border: 1px solid #2f3a5c;
+        border-radius: 6px;
+        padding: 7px 12px;
+        font: inherit;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      button:hover {
+        border-color: #4a7dff;
+      }
+      kbd {
+        background: #10151f;
+        border: 1px solid #2b3350;
+        border-radius: 4px;
+        padding: 0 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="stage">
+      <div class="player">
+        <div class="video-wrap"><video id="v" autoplay muted playsinline></video></div>
+        <div class="caption-layer">
+          <div class="caption-block" id="block"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="ui">
+      <div>
+        <label>Caption text (one line per row)</label>
+        <textarea id="text">
+This is so silly. I started playing again.</textarea
+        >
+      </div>
+      <div>
+        <label>Speaker label (optional)</label>
+        <input type="text" id="speaker" placeholder="PETER:" />
+        <div class="row" style="margin-top: 8px">
+          <div style="flex: 1">
+            <label>Player's default size (px)</label>
+            <input type="number" id="size" value="28" min="10" max="80" />
+          </div>
+          <label style="opacity: 1"><input type="checkbox" id="italic" /> italic</label>
+        </div>
+      </div>
+      <div class="row">
+        <button id="clean">Hide UI (H)</button>
+        <button id="pick">Use a video file…</button>
+        <input type="file" id="file" accept="video/*" hidden />
+      </div>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      const video = $('v');
+
+      /* ---- backdrop: synthetic unless the user supplies a real file ------- */
+
+      const canvas = document.createElement('canvas');
+      canvas.width = 1280;
+      canvas.height = 720;
+      const ctx = canvas.getContext('2d');
+      let t = 0;
+      let usingFile = false;
+
+      (function draw() {
+        if (!usingFile) {
+          t += 0.0035;
+          const cx = 640 + Math.sin(t) * 260;
+          const cy = 300 + Math.cos(t * 0.8) * 90;
+          const g = ctx.createRadialGradient(cx, cy, 40, 640, 360, 900);
+          g.addColorStop(0, 'hsl(28 55% 42%)');
+          g.addColorStop(0.45, 'hsl(220 40% 16%)');
+          g.addColorStop(1, '#05070b');
+          ctx.fillStyle = g;
+          ctx.fillRect(0, 0, 1280, 720);
+          // vignette
+          const v = ctx.createRadialGradient(640, 360, 260, 640, 360, 760);
+          v.addColorStop(0, 'rgba(0,0,0,0)');
+          v.addColorStop(1, 'rgba(0,0,0,.75)');
+          ctx.fillStyle = v;
+          ctx.fillRect(0, 0, 1280, 720);
+        }
+        requestAnimationFrame(draw);
+      })();
+
+      video.srcObject = canvas.captureStream(30);
+      video.play().catch(() => {});
+
+      $('pick').addEventListener('click', () => $('file').click());
+      $('file').addEventListener('change', (e) => {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        usingFile = true;
+        video.srcObject = null;
+        video.src = URL.createObjectURL(f);
+        video.loop = true;
+        video.play().catch(() => {});
+      });
+
+      /* ---- captions ------------------------------------------------------ */
+
+      function render() {
+        const lines = $('text').value.split('\n').filter((l) => l.trim());
+        const px = Number($('size').value) || 28;
+        const speaker = $('speaker').value.trim();
+        const italic = $('italic').checked;
+
+        $('block').replaceChildren(
+          ...lines.map((line, i) => {
+            const row = document.createElement('div');
+            row.className = 'caption-line';
+
+            const span = document.createElement('span');
+            span.className = 'cue';
+            // The player writes px inline; this is what gets overridden.
+            span.style.fontSize = `${px}px`;
+
+            // Speaker label as a direct text node of the wrapper with the
+            // dialogue in a child element — the exact shape that used to leave
+            // labels unscaled.
+            if (i === 0 && speaker) {
+              span.appendChild(document.createTextNode(speaker + ' '));
+              const inner = document.createElement(italic ? 'i' : 'span');
+              inner.textContent = line;
+              span.appendChild(inner);
+            } else if (italic) {
+              const inner = document.createElement('i');
+              inner.textContent = line;
+              span.appendChild(inner);
+            } else {
+              span.textContent = line;
+            }
+
+            row.appendChild(span);
+            return row;
+          })
+        );
+      }
+
+      for (const id of ['text', 'speaker', 'size', 'italic']) {
+        $(id).addEventListener('input', render);
+      }
+      render();
+
+      /* ---- capture mode -------------------------------------------------- */
+
+      function toggleClean() {
+        document.body.classList.toggle('clean');
+      }
+      $('clean').addEventListener('click', toggleClean);
+      addEventListener('keydown', (e) => {
+        if (e.key === 'h' || e.key === 'H') toggleClean();
+      });
+    </script>
+  </body>
+</html>
