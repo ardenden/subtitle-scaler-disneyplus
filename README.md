@@ -145,8 +145,15 @@ Settings live in `chrome.storage.sync` and apply live — no reload.
 - [x] Icons redone — `powershell -File tools/make-icons.ps1` regenerates them
 - [x] Version `1.0.0`
 - [x] `powershell -File tools/package.ps1` → `dist/subtitle-scaler-<version>.zip`
-- [ ] Screenshots — at least one 1280×800 or 640×400
-- [ ] Submit
+- [x] Screenshots — 1280×800, 24-bit PNG, no alpha. Widevine blanks protected
+      frames in screen captures, so these come from
+      [test/screenshot-rig.html](test/screenshot-rig.html) rather than real
+      playback. `tools/fix-screenshots.ps1` conforms captures; Windows saves
+      32-bit ARGB and region captures land a pixel short, both of which the
+      store rejects with only "An unknown error occurred".
+- [x] [PRIVACY.md](PRIVACY.md) — required even when nothing is collected
+- [x] **Submitted for review 2026-07-31** as v1.0.0, non-trader (so no EU/EEA
+      distribution), set to publish automatically on approval
 
 The packaging script writes zip entries with forward slashes and puts
 `manifest.json` at the root. Both matter: `Compress-Archive` on Windows
