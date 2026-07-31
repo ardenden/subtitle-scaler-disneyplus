@@ -34,6 +34,9 @@
   let regionEl = null;
   let cueRoot = null;
   let cleared = new Set();
+  let rootsCache = null;
+  let rootsCachedAt = 0;
+  let lastFullScan = 0;
   let nativeStyleEl = null;
   let resizeObserver = null;
   let sweepQueued = false;
@@ -49,6 +52,9 @@
   };
 
   const clamp = (lo, v, hi) => Math.max(lo, Math.min(v, hi));
+
+  const ROOTS_TTL_MS = 500; // shadow-root memo lifetime
+  const FULL_SCAN_MS = 1000; // floor between full-document cue sweeps
 
   /* ---------------------------------------------------------------- video */
 
@@ -67,6 +73,16 @@
       return rb.width * rb.height - ra.width * ra.height;
     });
     return visible[0] || null;
+  }
+
+  /** The cached element while it's still valid — findVideo() is a full-document
+   *  search and doesn't need to run once per frame. */
+  function currentVideo() {
+    if (video?.isConnected) {
+      const r = video.getBoundingClientRect();
+      if (r.width > 200 && r.height > 100) return video;
+    }
+    return findVideo();
   }
 
   /**
@@ -94,7 +110,7 @@
 
   /* --------------------------------------------------------- shadow roots */
 
-  function collectRoots(from = document, acc = new Set()) {
+  function walkRoots(from, acc) {
     acc.add(from);
     const walker = document.createTreeWalker(
       from === document ? document.documentElement : from,
@@ -102,10 +118,25 @@
     );
     let n = walker.currentNode;
     while (n) {
-      if (n.shadowRoot && !acc.has(n.shadowRoot)) collectRoots(n.shadowRoot, acc);
+      if (n.shadowRoot && !acc.has(n.shadowRoot)) walkRoots(n.shadowRoot, acc);
       n = walker.nextNode();
     }
     return acc;
+  }
+
+  /**
+   * Walking every element in the document looking for shadow roots is the
+   * single most expensive thing here, and both callers used to run it on every
+   * sweep. Memoised on a short TTL: long enough that one sweep does the walk
+   * once instead of twice, short enough that a newly attached shadow root is
+   * picked up promptly.
+   */
+  function collectRoots() {
+    const now = performance.now();
+    if (rootsCache && now - rootsCachedAt < ROOTS_TTL_MS) return rootsCache;
+    rootsCache = walkRoots(document, new Set());
+    rootsCachedAt = now;
+    return rootsCache;
   }
 
   /* ------------------------------------------------------- cue discovery */
@@ -285,18 +316,31 @@
     const box = video.getBoundingClientRect();
     if (!box.width || !box.height) return [];
 
-    // Strict sweep first. This is the path that's known to work, so it always
-    // runs — phase 2 may only widen the result, never replace it. A wrong
-    // cue-root guess must not be able to break detection outright.
-    const found = scanDocument(rejects);
-    if (found.length) cueRoot = findCueRoot(found[0]);
+    const inVideo = (el) => overlaps(el.getBoundingClientRect(), box);
 
-    // Then widen: anything inside the learned caption root is a caption
-    // wherever it sits, which is how top-positioned forced narratives get
-    // picked up. Bounded by an overlap test so a bad root can't drag in junk.
-    if (cueRoot && cueRoot.isConnected) {
-      for (const el of scanCueRoot(cueRoot)) {
-        if (!found.includes(el) && overlaps(el.getBoundingClientRect(), box)) found.push(el);
+    // Cheap path — scan only the learned caption container, typically a handful
+    // of elements. This is what runs on the per-frame cue swaps.
+    let found = cueRoot?.isConnected ? scanCueRoot(cueRoot).filter(inVideo) : [];
+
+    // Expensive path — full document sweep. Needed to learn the caption root in
+    // the first place, and to relearn it after an SPA navigation or player
+    // rebuild, but it's throttled: detection self-heals within a second rather
+    // than re-deriving everything 60 times a second.
+    const stale = performance.now() - lastFullScan >= FULL_SCAN_MS;
+    if (!found.length || stale) {
+      lastFullScan = performance.now();
+      const strict = scanDocument(rejects);
+      // Only displaces the cheap result when it actually found something —
+      // otherwise a moment with only top-positioned cues (which the position
+      // filter rejects) would wipe perfectly good matches.
+      if (strict.length) {
+        cueRoot = findCueRoot(strict[0]);
+        found = strict;
+        if (cueRoot?.isConnected) {
+          for (const el of scanCueRoot(cueRoot)) {
+            if (!found.includes(el) && inVideo(el)) found.push(el);
+          }
+        }
       }
     }
     return found;
@@ -492,11 +536,15 @@
 
   function sweep() {
     sweepQueued = false;
-    const current = findVideo();
+    const current = currentVideo();
     if (current !== video) {
       video = current;
       clearStamps();
       watchVideo();
+      // New player: drop the memoised roots and force an immediate full scan
+      // rather than waiting out the throttle.
+      rootsCachedAt = 0;
+      lastFullScan = 0;
     }
     if (!video) {
       status.path = 'none';

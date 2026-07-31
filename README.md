@@ -81,6 +81,30 @@ Bugs found during real use, all fixed:
 4. **Deploy resilience** — the real test is whether detection survives Disney+
    shipping a new player build.
 
+### Cost during playback
+
+The `MutationObserver` watches the whole document, and the player mutates
+constantly while a video plays — so sweeps run close to once per animation
+frame, not on the 750 ms interval the timer suggests. That makes the per-sweep
+cost the thing that matters.
+
+Two paths, split by expense:
+
+- **Cheap** — scan the learned caption container only, a handful of elements.
+  This is what runs on the per-frame cue swaps.
+- **Expensive** — full-document sweep. Learns the caption root and relearns it
+  after SPA navigation or a player rebuild. Floored to once per second by
+  `FULL_SCAN_MS`, so detection self-heals within a second instead of
+  re-deriving everything 60 times a second.
+
+The shadow-root walk is memoised for `ROOTS_TTL_MS`, and the video element is
+cached while it stays connected and correctly sized. Both were previously
+full-document searches running every sweep.
+
+Not profiled — this is a structural fix based on reading the hot path. A Chrome
+performance recording during playback would be the way to confirm where time
+actually goes.
+
 ### Diagnostics
 
 When the popup reads `Waiting for captions…` it exposes a **Copy report**
