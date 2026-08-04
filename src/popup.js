@@ -7,13 +7,15 @@ const DEFAULTS = {
   maxPx: 140,
   bgOpacity: 35,
   shadow: true,
+  maxWidth: 92,
 };
 
-const RANGES = ['scale', 'bgOpacity'];
+const RANGES = ['scale', 'maxWidth', 'bgOpacity'];
 const CHECKS = ['enabled', 'shadow'];
 
 const FORMAT = {
   scale: (v) => `${(+v).toFixed(1)}%`,
+  maxWidth: (v) => `${v}%`,
   bgOpacity: (v) => (+v === 0 ? 'off' : `${v}%`),
 };
 

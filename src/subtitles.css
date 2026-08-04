@@ -11,10 +11,11 @@
   text-shadow: var(--subscale-shadow, none) !important;
 }
 
-[data-subscale-cue] {
-  white-space: normal !important;
-  max-width: 92%;
-}
+/* Deliberately no white-space override. Disney+ puts real newlines in the cue
+   text and sets `pre-wrap` on the container to honour them — those are the
+   line breaks authored in the subtitle file. Forcing `normal` collapsed them
+   into spaces, turning two comfortable lines into one long one that ran past
+   the edge of the picture. */
 
 /* Present on every outermost cue, including at 0 opacity — the variable
    resolves to `transparent` there, which is what actually suppresses the
@@ -43,5 +44,14 @@
   height: auto !important;
   max-height: none !important;
   overflow: visible !important;
+}
+
+/* The cue's own positioning container — absolutely positioned and centred with
+   translateX, per the live markup. Constraining it here is what actually caps
+   line length, since the cue spans themselves are inline and ignore max-width.
+   The limit has to be a user setting: Disney+ bakes 4:3 pillarbox bars into a
+   16:9 encode, so no amount of metadata reveals where the picture really ends. */
+[data-subscale-box] {
+  max-width: var(--subscale-maxw, none) !important;
 }
 

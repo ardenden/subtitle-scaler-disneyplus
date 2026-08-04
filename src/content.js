@@ -18,6 +18,7 @@
   const REGION_ATTR = 'data-subscale-region';
   const BG_ATTR = 'data-subscale-bg';
   const CLEAR_ATTR = 'data-subscale-clear';
+  const BOX_ATTR = 'data-subscale-box';
 
   const DEFAULTS = {
     enabled: true,
@@ -26,6 +27,7 @@
     maxPx: 140,
     bgOpacity: 35, // %
     shadow: true,
+    maxWidth: 92, // % of the video's displayed width
   };
 
   let settings = { ...DEFAULTS };
@@ -34,6 +36,7 @@
   let regionEl = null;
   let cueRoot = null;
   let cleared = new Set();
+  let boxed = new Set();
   let rootsCache = null;
   let rootsCachedAt = 0;
   let lastFullScan = 0;
@@ -46,6 +49,9 @@
     cueCount: 0,
     sample: '',
     videoBox: '',
+    intrinsic: '',
+    elementBox: '',
+    aspect: '',
     fontPx: 0,
     rejects: [],
     error: null,
@@ -444,6 +450,8 @@
     stamped.clear();
     for (const el of cleared) el.removeAttribute(CLEAR_ATTR);
     cleared.clear();
+    for (const el of boxed) el.removeAttribute(BOX_ATTR);
+    boxed.clear();
     cueRoot = null;
     if (regionEl) {
       regionEl.removeAttribute(REGION_ATTR);
@@ -464,13 +472,25 @@
       }
     }
 
+    for (const el of boxed) el.removeAttribute(BOX_ATTR);
+    boxed.clear();
+
     for (const el of cues) {
       el.setAttribute(CUE_ATTR, '');
       // Stamped regardless of opacity: at 0 the variable resolves to
       // `transparent`, which *overrides* the player's own box. Dropping the
       // attribute instead would just restore Disney+'s dark background.
-      if (isOutermost(el, cues)) el.setAttribute(BG_ATTR, '');
-      else el.removeAttribute(BG_ATTR);
+      if (isOutermost(el, cues)) {
+        el.setAttribute(BG_ATTR, '');
+        // The parent is the positioning container; capping its width is what
+        // caps line length, since inline cues ignore max-width themselves.
+        if (el.parentElement) {
+          el.parentElement.setAttribute(BOX_ATTR, '');
+          boxed.add(el.parentElement);
+        }
+      } else {
+        el.removeAttribute(BG_ATTR);
+      }
       stamped.add(el);
     }
 
@@ -543,7 +563,7 @@
   function updateVars() {
     const root = document.documentElement.style;
     if (!settings.enabled || !video) {
-      for (const p of ['size', 'bg', 'shadow']) root.removeProperty(`--subscale-${p}`);
+      for (const p of ['size', 'bg', 'shadow', 'maxw']) root.removeProperty(`--subscale-${p}`);
       return;
     }
     const box = contentBox(video);
@@ -558,8 +578,21 @@
       '--subscale-shadow',
       settings.shadow ? '0 .06em .12em rgba(0,0,0,.95), 0 0 .25em rgba(0,0,0,.8)' : 'none'
     );
+    // A percentage of the displayed image width. This can't be derived: Disney+
+    // encodes 4:3 content into a 16:9 frame with the pillarbox bars baked into
+    // the picture, so videoWidth/videoHeight reports 16:9 and nothing in the
+    // metadata says where the real image stops. Hence a user setting.
+    root.setProperty('--subscale-maxw', `${Math.round((box.w * settings.maxWidth) / 100)}px`);
 
     status.videoBox = `${Math.round(box.w)}x${Math.round(box.h)}`;
+    // Intrinsic vs element size tells us whether black bars are geometry we can
+    // compute around, or pixels baked into the encode that we can't see.
+    const rect = video.getBoundingClientRect();
+    status.intrinsic = `${video.videoWidth}x${video.videoHeight}`;
+    status.elementBox = `${Math.round(rect.width)}x${Math.round(rect.height)}`;
+    status.aspect = video.videoHeight
+      ? (video.videoWidth / video.videoHeight).toFixed(3)
+      : 'unknown';
     status.fontPx = Math.round(px);
     updateNativeStyle(px);
   }

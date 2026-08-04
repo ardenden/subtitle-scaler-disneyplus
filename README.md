@@ -52,6 +52,19 @@ Bugs found during real use, all fixed:
   strict sweep rather than extending it, so one bad guess at the container
   killed detection permanently. Phase 1 now always runs and phase 2 may only
   widen the result.
+- **Captions ran past the edge of the picture.** The stylesheet forced
+  `white-space: normal`, which collapsed the newlines Disney+ puts *inside* the
+  cue text. Their subtitle files carry authored line breaks and the player sets
+  `pre-wrap` to honour them, so flattening those turned two comfortable lines
+  into one long one — then scaled it up. Most visible on 4:3 shows, where there
+  is less room to hide it, but it affected everything.
+
+  A `Max width` control was added alongside, capping the cue's positioning
+  container. It can't be automatic: Disney+ encodes 4:3 content into a 16:9
+  frame with the pillarbox bars baked into the picture, so `videoWidth`/
+  `videoHeight` report 16:9 and nothing reveals where the image really stops.
+  Note the container is shrink-to-fit, so the setting only bites below the
+  caption's natural width — around 55% in practice.
 - **Settings silently stopped applying.** The popup wrote to
   `chrome.storage.sync` on every `input` event, so a single slider drag blew the
   120-writes-per-minute quota. Past that point every write fails — including
