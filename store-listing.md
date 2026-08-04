@@ -32,6 +32,7 @@ Subtitle Scaler sizes captions as a percentage of the video image itself. Set it
 Controls:
 
 • Size — as a percentage of the video's height, not the window's
+• Max width — keep long lines inside the picture, useful on older 4:3 shows
 • Background — adjust the box behind the text, or turn it off entirely
 • Drop shadow — keeps text legible over bright scenes
 
