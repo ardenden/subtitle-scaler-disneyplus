@@ -87,6 +87,24 @@ satisfies. Three guards, in order of how much they catch:
    path keeps re-stamping it, which is why panel text *stuck* while homepage
    text corrected itself after a second.
 
+### Known limitation: the first cue after playback starts
+
+If the *first* caption after starting a video is top-positioned — a sign, or
+foreign dialogue — it renders unstyled for a few seconds.
+
+`cueRoot` is only ever learned from the strict document scan, which applies the
+position filter and rejects anything in the upper 40% of the video. Top cues are
+found only by the cheap path, which needs a `cueRoot` already learned from a
+bottom caption. At cold start there isn't one, so the first top cue falls
+through. The first ordinary bottom caption teaches it the container and
+everything works from then on. `clearStamps()` resets `cueRoot` on a video
+element change, so switching episodes reopens the same window.
+
+Left alone deliberately. Every fix means relaxing the position filter to
+bootstrap from the top zone, which is exactly what let title cards and panel
+text get styled before the guards above were added. A few seconds of cosmetic
+delay is the better trade.
+
 ### Still worth checking
 
 1. **False positives** — anything *other* than captions changing size (a title
