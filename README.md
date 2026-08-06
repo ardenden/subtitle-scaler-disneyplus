@@ -1,5 +1,7 @@
 # Subtitle Scaler for Disney+
 
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/oflehfffcfgohboepehdiejebjhlgbhn?label=chrome%20web%20store)](https://chromewebstore.google.com/detail/subtitle-scaler/oflehfffcfgohboepehdiejebjhlgbhn)
+[![Users](https://img.shields.io/chrome-web-store/users/oflehfffcfgohboepehdiejebjhlgbhn)](https://chromewebstore.google.com/detail/subtitle-scaler/oflehfffcfgohboepehdiejebjhlgbhn)
 [![CI](https://github.com/ardenden/subtitle-scaler-disneyplus/actions/workflows/ci.yml/badge.svg)](https://github.com/ardenden/subtitle-scaler-disneyplus/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
@@ -8,7 +10,14 @@ size of the video, so subtitles are oversized in a small window and too small on
 large screen. This extension sizes them as a percentage of the **rendered video
 image** instead, and keeps them there across resize, fullscreen, and cue changes.
 
-## Install (unpacked)
+## Install
+
+**[Get it on the Chrome Web Store](https://chromewebstore.google.com/detail/subtitle-scaler/oflehfffcfgohboepehdiejebjhlgbhn)**
+
+Then open a Disney+ title, start playback with subtitles on, and click the
+toolbar icon.
+
+### From source
 
 1. `chrome://extensions` → enable **Developer mode**
 2. **Load unpacked** → select this folder
