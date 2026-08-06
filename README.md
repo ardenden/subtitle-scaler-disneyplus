@@ -1,5 +1,8 @@
 # Subtitle Scaler for Disney+
 
+[![CI](https://github.com/ardenden/subtitle-scaler-disneyplus/actions/workflows/ci.yml/badge.svg)](https://github.com/ardenden/subtitle-scaler-disneyplus/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 Disney+ pins caption font size to a fixed preset ladder in `px` rather than to the
 size of the video, so subtitles are oversized in a small window and too small on a
 large screen. This extension sizes them as a percentage of the **rendered video
