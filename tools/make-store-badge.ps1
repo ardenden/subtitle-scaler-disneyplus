@@ -15,10 +15,16 @@ Add-Type -AssemblyName System.Drawing
 $outDir = Join-Path $PSScriptRoot '..\assets'
 if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir | Out-Null }
 
-$S = 2                      # scale factor
-$H = 58 * $S
-$TX = 54 * $S               # text left edge
-$PAD_R = 18 * $S            # right padding, matched to the icon's left margin
+# Two independent knobs:
+#   $D  how large the button appears in the README — raise to make it bigger
+#   $S  supersampling for HiDPI; the PNG renders at $S times display size
+$D = 1.3
+$S = 2
+$U = $D * $S                # design unit -> pixels
+
+$H = [int](58 * $U)
+$TX = 54 * $U               # text left edge
+$PAD_R = 18 * $U            # right padding, matched to the icon's left margin
 # Width is measured from the text rather than guessed, so the right padding
 # always matches the left regardless of the wording or font metrics.
 
@@ -36,8 +42,8 @@ function New-RoundedPath([single]$x, [single]$y, [single]$w, [single]$h, [single
 # Typographic formatting removes the extra padding DrawString adds by default,
 # so what's measured is what's drawn.
 $fmt = [System.Drawing.StringFormat]::GenericTypographic
-$small = New-Object System.Drawing.Font('Segoe UI', (8.5 * $S), [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
-$large = New-Object System.Drawing.Font('Segoe UI Semibold', (15 * $S), [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
+$small = New-Object System.Drawing.Font('Segoe UI', (8.5 * $U), [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
+$large = New-Object System.Drawing.Font('Segoe UI Semibold', (15 * $U), [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
 
 $probe = [System.Drawing.Graphics]::FromImage((New-Object System.Drawing.Bitmap(1, 1)))
 $probe.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::ClearTypeGridFit
@@ -53,24 +59,24 @@ $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
 $g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::ClearTypeGridFit
 
 # Body + hairline border
-$body = New-RoundedPath 1 1 ($W - 2) ($H - 2) (10 * $S)
+$body = New-RoundedPath 1 1 ($W - 2) ($H - 2) (10 * $U)
 $g.FillPath((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 26, 30, 42))), $body)
-$pen = New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(255, 58, 68, 89)), (1 * $S)
+$pen = New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(255, 58, 68, 89)), (1 * $U)
 $g.DrawPath($pen, $body)
 
 # The extension's mark: two caption bars, lower one larger and accented
-$ix = 18 * $S; $iy = 17 * $S; $iw = 24 * $S
+$ix = 18 * $U; $iy = 17 * $U; $iw = 24 * $U
 $dim = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(160, 232, 235, 242))
 $accent = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 74, 125, 255))
-$g.FillPath($dim, (New-RoundedPath ($ix + $iw * 0.28) $iy ($iw * 0.44) (3 * $S) (1.5 * $S)))
-$g.FillPath($accent, (New-RoundedPath $ix ($iy + 9 * $S) $iw (6 * $S) (3 * $S)))
+$g.FillPath($dim, (New-RoundedPath ($ix + $iw * 0.28) $iy ($iw * 0.44) (3 * $U) (1.5 * $U)))
+$g.FillPath($accent, (New-RoundedPath $ix ($iy + 9 * $U) $iw (6 * $U) (3 * $U)))
 
 # Wordmark
 $greyText = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 176, 185, 204))
 $white = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::White)
 
-$g.DrawString('Download from the', $small, $greyText, $TX, (14 * $S), $fmt)
-$g.DrawString('Chrome Web Store', $large, $white, $TX, (26 * $S), $fmt)
+$g.DrawString('Download from the', $small, $greyText, $TX, (14 * $U), $fmt)
+$g.DrawString('Chrome Web Store', $large, $white, $TX, (26 * $U), $fmt)
 
 $g.Dispose()
 $out = Join-Path $outDir 'chrome-web-store-badge.png'
