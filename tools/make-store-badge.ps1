@@ -69,7 +69,28 @@ $g.FillPath($accent, (New-RoundedPath $ix ($iy + 9 * $S) $iw (6 * $S) (3 * $S)))
 $greyText = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 176, 185, 204))
 $white = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::White)
 
-$g.DrawString('Download from the', $small, $greyText, $TX, (14 * $S), $fmt)
+# The upper line is shorter than the lower one, which leaves an obvious hole in
+# the top-right corner. Track it out to the same width — the same trick the App
+# Store and Microsoft Store badges use — so the block reads as a unit.
+function Write-Tracked($graphics, $text, $font, $brush, $x, $y, $targetWidth, $format) {
+  $chars = $text.ToCharArray()
+  $natural = 0.0
+  $widths = @()
+  foreach ($ch in $chars) {
+    $w = $graphics.MeasureString([string]$ch, $font, [int]::MaxValue, $format).Width
+    $widths += $w
+    $natural += $w
+  }
+  $gaps = [Math]::Max($chars.Length - 1, 1)
+  $extra = [Math]::Max($targetWidth - $natural, 0) / $gaps
+  $cursor = [single]$x
+  for ($i = 0; $i -lt $chars.Length; $i++) {
+    $graphics.DrawString([string]$chars[$i], $font, $brush, $cursor, $y, $format)
+    $cursor += $widths[$i] + $extra
+  }
+}
+
+Write-Tracked $g 'Download from the' $small $greyText $TX (14 * $S) $wLarge $fmt
 $g.DrawString('Chrome Web Store', $large, $white, $TX, (26 * $S), $fmt)
 
 $g.Dispose()
