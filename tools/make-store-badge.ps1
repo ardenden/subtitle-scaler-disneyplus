@@ -16,7 +16,11 @@ $outDir = Join-Path $PSScriptRoot '..\assets'
 if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir | Out-Null }
 
 $S = 2                      # scale factor
-$W = 244 * $S; $H = 58 * $S
+$H = 58 * $S
+$TX = 54 * $S               # text left edge
+$PAD_R = 18 * $S            # right padding, matched to the icon's left margin
+# Width is measured from the text rather than guessed, so the right padding
+# always matches the left regardless of the wording or font metrics.
 
 function New-RoundedPath([single]$x, [single]$y, [single]$w, [single]$h, [single]$r) {
   $p = New-Object System.Drawing.Drawing2D.GraphicsPath
@@ -28,6 +32,20 @@ function New-RoundedPath([single]$x, [single]$y, [single]$w, [single]$h, [single
   $p.CloseFigure()
   return $p
 }
+
+# Typographic formatting removes the extra padding DrawString adds by default,
+# so what's measured is what's drawn.
+$fmt = [System.Drawing.StringFormat]::GenericTypographic
+$small = New-Object System.Drawing.Font('Segoe UI', (8.5 * $S), [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
+$large = New-Object System.Drawing.Font('Segoe UI Semibold', (15 * $S), [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
+
+$probe = [System.Drawing.Graphics]::FromImage((New-Object System.Drawing.Bitmap(1, 1)))
+$probe.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::ClearTypeGridFit
+$wSmall = $probe.MeasureString('Download from the', $small, [int]::MaxValue, $fmt).Width
+$wLarge = $probe.MeasureString('Chrome Web Store', $large, [int]::MaxValue, $fmt).Width
+$probe.Dispose()
+
+$W = [int][Math]::Ceiling($TX + [Math]::Max($wSmall, $wLarge) + $PAD_R)
 
 $bmp = New-Object System.Drawing.Bitmap($W, $H)
 $g = [System.Drawing.Graphics]::FromImage($bmp)
@@ -48,14 +66,11 @@ $g.FillPath($dim, (New-RoundedPath ($ix + $iw * 0.28) $iy ($iw * 0.44) (3 * $S) 
 $g.FillPath($accent, (New-RoundedPath $ix ($iy + 9 * $S) $iw (6 * $S) (3 * $S)))
 
 # Wordmark
-$small = New-Object System.Drawing.Font('Segoe UI', (8.5 * $S), [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
-$large = New-Object System.Drawing.Font('Segoe UI Semibold', (15 * $S), [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
 $greyText = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 176, 185, 204))
 $white = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::White)
 
-$tx = 54 * $S
-$g.DrawString('Download from the', $small, $greyText, $tx, (13 * $S))
-$g.DrawString('Chrome Web Store', $large, $white, ($tx - 2 * $S), (25 * $S))
+$g.DrawString('Download from the', $small, $greyText, $TX, (14 * $S), $fmt)
+$g.DrawString('Chrome Web Store', $large, $white, $TX, (26 * $S), $fmt)
 
 $g.Dispose()
 $out = Join-Path $outDir 'chrome-web-store-badge.png'
