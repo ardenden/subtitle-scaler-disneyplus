@@ -45,58 +45,15 @@ toolbar icon.
   the DOM path, so the native fallback is exercised by
   [test/native-track.html](test/native-track.html) instead.
 
-## Status
+## Design notes
 
-Working — DOM caption path confirmed against a live title. Size, background and
-shadow all verified against real playback.
+Published and in daily use. The DOM caption path is confirmed against live
+playback; the native `<track>` fallback has no Disney+ content to exercise it,
+so [test/native-track.html](test/native-track.html) stands in.
 
-Bugs found during real use, all fixed:
-
-- **Speaker labels didn't scale.** A cue shaped like
-  `<span>NAME: <i>dialogue</i></span>` holds the label as a direct text node of
-  the wrapper. The old `innermost()` filter dropped any element containing
-  another text carrier, so the wrapper was never stamped and its label kept the
-  player's size. Now every carrier is stamped; only the outermost gets the
-  background box, so boxes still don't double up.
-- **Top-positioned captions ignored.** Forced narratives (signs, foreign
-  dialogue) render at the top of the frame and the position filter rejected
-  them. Fixed by learning the caption root from a confirmed cue, then accepting
-  anything inside it regardless of position.
-- **Total detection failure** after the above. The cue-root path *replaced* the
-  strict sweep rather than extending it, so one bad guess at the container
-  killed detection permanently. Phase 1 now always runs and phase 2 may only
-  widen the result.
-- **Captions ran past the edge of the picture.** The stylesheet forced
-  `white-space: normal`, which collapsed the newlines Disney+ puts *inside* the
-  cue text. Their subtitle files carry authored line breaks and the player sets
-  `pre-wrap` to honour them, so flattening those turned two comfortable lines
-  into one long one — then scaled it up. Most visible on 4:3 shows, where there
-  is less room to hide it, but it affected everything.
-
-  A `Max width` control was added alongside, capping the cue's positioning
-  container. It can't be automatic: Disney+ encodes 4:3 content into a 16:9
-  frame with the pillarbox bars baked into the picture, so `videoWidth`/
-  `videoHeight` report 16:9 and nothing reveals where the image really stops.
-  Note the container is shrink-to-fit, so the setting only bites below the
-  caption's natural width — around 55% in practice.
-- **Settings silently stopped applying.** The popup wrote to
-  `chrome.storage.sync` on every `input` event, so a single slider drag blew the
-  120-writes-per-minute quota. Past that point every write fails — including
-  from unrelated controls, which is why the drop-shadow toggle looked broken and
-  why `MAX_WRITE_OPERATIONS_PER_MINUTE` showed up on the extensions page.
-  Changes now go straight to the content script for instant preview, with
-  persistence on a 400 ms trailing debounce and a retry if the quota is hit
-  anyway.
-
-- `nearInteractive()` walked up five ancestors asking whether any of them
-  *contained* an interactive element. A few levels above a caption you reach the
-  player overlay, which contains every button on screen, so it rejected every
-  candidate. Replaced by `isPlayerChrome()`, which checks direct children only —
-  a control bar directly holds its buttons, a caption's ancestors hold layout
-  divs.
-- Position filtering used the video *image* box, so captions rendered down in
-  the letterbox bar were rejected as `below-video`. Now filtered against the
-  video element rect; the image box is still what drives sizing.
+What follows is the reasoning behind the parts that look arbitrary — worth
+reading before changing detection. The individual bugs and their causes are in
+`git log`.
 
 ### Guards against false positives
 
@@ -132,15 +89,11 @@ bootstrap from the top zone, which is exactly what let title cards and panel
 text get styled before the guards above were added. A few seconds of cosmetic
 delay is the better trade.
 
-### Still worth checking
+### Still open
 
-1. **False positives** — anything *other* than captions changing size (a title
-   card, a "Next episode" overlay). The guards are `isPlayerChrome()` and the
-   lower-40%-of-video position filter.
-2. **Letterboxed film, windowed → fullscreen** — confirms sizing tracks the
-   image box rather than the element box.
-3. **Deploy resilience** — the real test is whether detection survives Disney+
-   shipping a new player build.
+Detection depends on the shape of the Disney+ player DOM, so a new player build
+can break it — that's the standing risk, and it can't be pre-empted. When it
+happens, the **Copy report** button names the check that rejected the cues.
 
 ### Cost during playback
 
@@ -177,44 +130,20 @@ each one. That's the fast path to re-tuning `cueRejection()` without DevTools.
 | Setting    | Default | Notes                                                        |
 | ---------- | ------- | ------------------------------------------------------------ |
 | Size       | 4.6%    | of rendered video height, clamped to 14–140px                |
+| Max width  | 92%     | of the displayed image width                                 |
 | Background | 35%     | 0 paints `transparent`, which overrides the player's own box |
 | Shadow     | on      | keeps text legible over bright scenes                        |
 
-Settings live in `chrome.storage.sync` and apply live — no reload.
+Settings live in `chrome.storage.sync` and apply live — no reload. Writes are
+debounced: the popup pushes changes straight to the page for preview, because
+writing on every slider event blows the 120-per-minute sync quota, after which
+*all* writes fail silently.
 
-## Publishing
-
-- [x] Renamed to `Subtitle Scaler` — the old name put a trademark in the
-      extension title, which the Web Store branding policy disallows without
-      authorisation. Disney+ is named in the description instead.
-- [x] Icons redone — `powershell -File tools/make-icons.ps1` regenerates them
-- [x] Version `1.0.0`
-- [x] `powershell -File tools/package.ps1` → `dist/subtitle-scaler-<version>.zip`
-- [x] Screenshots — 1280×800, 24-bit PNG, no alpha. Widevine blanks protected
-      frames in screen captures, so these come from
-      [test/screenshot-rig.html](test/screenshot-rig.html) rather than real
-      playback. `tools/fix-screenshots.ps1` conforms captures; Windows saves
-      32-bit ARGB and region captures land a pixel short, both of which the
-      store rejects with only "An unknown error occurred".
-- [x] [PRIVACY.md](PRIVACY.md) — required even when nothing is collected
-- [x] **Submitted for review 2026-07-31** as v1.0.0, non-trader (so no EU/EEA
-      distribution), set to publish automatically on approval
-
-The packaging script writes zip entries with forward slashes and puts
-`manifest.json` at the root. Both matter: `Compress-Archive` on Windows
-PowerShell 5.1 emits backslash separators, which the ZIP spec disallows, and a
-nested manifest is the classic first-upload rejection.
-
-Listing text — description, single-purpose statement, permission
-justifications, privacy answers — is written out in
-[store-listing.md](store-listing.md).
-
-[Firefox Add-ons](https://addons.mozilla.org) is free to publish and needs only
-a `browser_specific_settings.gecko.id` block added to the manifest.
-
-## License
-
-MIT — see [LICENSE](LICENSE).
+**Max width** can't be derived. Disney+ encodes 4:3 content into a 16:9 frame
+with the pillarbox bars baked into the picture, so `videoWidth`/`videoHeight`
+report 16:9 and nothing says where the image really stops. The container is
+shrink-to-fit, so the setting only bites below the caption's natural width —
+around 55% in practice.
 
 ### Dropped: Raise and Weight
 
