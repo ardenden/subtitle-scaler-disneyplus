@@ -69,28 +69,7 @@ $g.FillPath($accent, (New-RoundedPath $ix ($iy + 9 * $S) $iw (6 * $S) (3 * $S)))
 $greyText = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 176, 185, 204))
 $white = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::White)
 
-# The upper line is shorter than the lower one, which leaves an obvious hole in
-# the top-right corner. Track it out to the same width — the same trick the App
-# Store and Microsoft Store badges use — so the block reads as a unit.
-function Write-Tracked($graphics, $text, $font, $brush, $x, $y, $targetWidth, $format) {
-  # Positions come from measuring successive prefixes of the whole string, not
-  # from summing individual characters. Per-character widths include each
-  # glyph's side bearings, so they add up to more than the string actually
-  # occupies and the line lands short of the target.
-  $n = $text.Length
-  $natural = $graphics.MeasureString($text, $font, [int]::MaxValue, $format).Width
-  $gaps = [Math]::Max($n - 1, 1)
-  $extra = [Math]::Max($targetWidth - $natural, 0) / $gaps
-
-  for ($i = 0; $i -lt $n; $i++) {
-    $prefix = if ($i -eq 0) { 0.0 } else {
-      $graphics.MeasureString($text.Substring(0, $i), $font, [int]::MaxValue, $format).Width
-    }
-    $graphics.DrawString([string]$text[$i], $font, $brush, ($x + $prefix + $extra * $i), $y, $format)
-  }
-}
-
-Write-Tracked $g 'Download from the' $small $greyText $TX (14 * $S) $wLarge $fmt
+$g.DrawString('Download from the', $small, $greyText, $TX, (14 * $S), $fmt)
 $g.DrawString('Chrome Web Store', $large, $white, $TX, (26 * $S), $fmt)
 
 $g.Dispose()
