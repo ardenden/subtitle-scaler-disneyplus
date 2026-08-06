@@ -22,9 +22,12 @@ $D = 1
 $S = 2
 $U = $D * $S                # design unit -> pixels
 
-$H = [int](58 * $U)
-$TX = 54 * $U               # text left edge
-$PAD_R = 18 * $U            # right padding, matched to the icon's left margin
+# Kept deliberately tight. The reference badges are compact — the type fills
+# most of the height and the icon stays small, rather than the button growing
+# to accommodate generous padding.
+$H = [int](50 * $U)
+$TX = 40 * $U               # text left edge
+$PAD_R = 13 * $U            # right padding, matched to the icon's left margin
 # Width is measured from the text rather than guessed, so the right padding
 # always matches the left regardless of the wording or font metrics.
 
@@ -65,18 +68,18 @@ $pen = New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(255, 58, 
 $g.DrawPath($pen, $body)
 
 # The extension's mark: two caption bars, lower one larger and accented
-$ix = 18 * $U; $iy = 17 * $U; $iw = 24 * $U
+$ix = 13 * $U; $iy = 17 * $U; $iw = 17 * $U
 $dim = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(160, 232, 235, 242))
 $accent = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 74, 125, 255))
-$g.FillPath($dim, (New-RoundedPath ($ix + $iw * 0.28) $iy ($iw * 0.44) (3 * $U) (1.5 * $U)))
-$g.FillPath($accent, (New-RoundedPath $ix ($iy + 9 * $U) $iw (6 * $U) (3 * $U)))
+$g.FillPath($dim, (New-RoundedPath ($ix + $iw * 0.28) $iy ($iw * 0.44) (2.5 * $U) (1.25 * $U)))
+$g.FillPath($accent, (New-RoundedPath $ix ($iy + 7 * $U) $iw (5 * $U) (2.5 * $U)))
 
 # Wordmark
 $greyText = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 176, 185, 204))
 $white = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::White)
 
-$g.DrawString('Download from the', $small, $greyText, $TX, (11 * $U), $fmt)
-$g.DrawString('Chrome Web Store', $large, $white, $TX, (25 * $U), $fmt)
+$g.DrawString('Download from the', $small, $greyText, $TX, (8 * $U), $fmt)
+$g.DrawString('Chrome Web Store', $large, $white, $TX, (21 * $U), $fmt)
 
 $g.Dispose()
 $out = Join-Path $outDir 'chrome-web-store-badge.png'
