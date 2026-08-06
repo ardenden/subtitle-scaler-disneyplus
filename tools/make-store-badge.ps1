@@ -1,0 +1,65 @@
+# Generates assets/chrome-web-store-badge.png — a store-button style badge for
+# the README, in the vein of the App Store / Microsoft Store buttons.
+#
+#   powershell -File tools/make-store-badge.ps1
+#
+# Google's own badge assets aren't publicly hotlinkable (they 403), so this is
+# drawn locally and committed. It uses this extension's own mark rather than
+# Chrome's logo, which avoids trading on someone else's branding; the store name
+# appears as text, which is ordinary nominative use.
+#
+# Rendered at 2x and displayed at half size, so it stays sharp on HiDPI screens.
+
+Add-Type -AssemblyName System.Drawing
+
+$outDir = Join-Path $PSScriptRoot '..\assets'
+if (-not (Test-Path $outDir)) { New-Item -ItemType Directory -Path $outDir | Out-Null }
+
+$S = 2                      # scale factor
+$W = 244 * $S; $H = 58 * $S
+
+function New-RoundedPath([single]$x, [single]$y, [single]$w, [single]$h, [single]$r) {
+  $p = New-Object System.Drawing.Drawing2D.GraphicsPath
+  $d = $r * 2
+  $p.AddArc($x, $y, $d, $d, 180, 90)
+  $p.AddArc($x + $w - $d, $y, $d, $d, 270, 90)
+  $p.AddArc($x + $w - $d, $y + $h - $d, $d, $d, 0, 90)
+  $p.AddArc($x, $y + $h - $d, $d, $d, 90, 90)
+  $p.CloseFigure()
+  return $p
+}
+
+$bmp = New-Object System.Drawing.Bitmap($W, $H)
+$g = [System.Drawing.Graphics]::FromImage($bmp)
+$g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+$g.TextRenderingHint = [System.Drawing.Text.TextRenderingHint]::ClearTypeGridFit
+
+# Body + hairline border
+$body = New-RoundedPath 1 1 ($W - 2) ($H - 2) (10 * $S)
+$g.FillPath((New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 26, 30, 42))), $body)
+$pen = New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(255, 58, 68, 89)), (1 * $S)
+$g.DrawPath($pen, $body)
+
+# The extension's mark: two caption bars, lower one larger and accented
+$ix = 18 * $S; $iy = 17 * $S; $iw = 24 * $S
+$dim = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(160, 232, 235, 242))
+$accent = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 74, 125, 255))
+$g.FillPath($dim, (New-RoundedPath ($ix + $iw * 0.28) $iy ($iw * 0.44) (3 * $S) (1.5 * $S)))
+$g.FillPath($accent, (New-RoundedPath $ix ($iy + 9 * $S) $iw (6 * $S) (3 * $S)))
+
+# Wordmark
+$small = New-Object System.Drawing.Font('Segoe UI', (8.5 * $S), [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
+$large = New-Object System.Drawing.Font('Segoe UI Semibold', (15 * $S), [System.Drawing.FontStyle]::Regular, [System.Drawing.GraphicsUnit]::Pixel)
+$greyText = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::FromArgb(255, 176, 185, 204))
+$white = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::White)
+
+$tx = 54 * $S
+$g.DrawString('Download from the', $small, $greyText, $tx, (13 * $S))
+$g.DrawString('Chrome Web Store', $large, $white, ($tx - 2 * $S), (25 * $S))
+
+$g.Dispose()
+$out = Join-Path $outDir 'chrome-web-store-badge.png'
+$bmp.Save($out, [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Dispose()
+
+"{0}  ({1}x{2}, display at {3}x{4})" -f $out, $W, $H, ($W / $S), ($H / $S)

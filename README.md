@@ -1,9 +1,12 @@
 # Subtitle Scaler for Disney+
 
-[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/oflehfffcfgohboepehdiejebjhlgbhn?label=chrome%20web%20store)](https://chromewebstore.google.com/detail/subtitle-scaler/oflehfffcfgohboepehdiejebjhlgbhn)
-[![Users](https://img.shields.io/chrome-web-store/users/oflehfffcfgohboepehdiejebjhlgbhn)](https://chromewebstore.google.com/detail/subtitle-scaler/oflehfffcfgohboepehdiejebjhlgbhn)
+<a href="https://chromewebstore.google.com/detail/subtitle-scaler/oflehfffcfgohboepehdiejebjhlgbhn">
+  <img src="assets/chrome-web-store-badge.png" width="244" alt="Download from the Chrome Web Store">
+</a>
+
 [![CI](https://github.com/ardenden/subtitle-scaler-disneyplus/actions/workflows/ci.yml/badge.svg)](https://github.com/ardenden/subtitle-scaler-disneyplus/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/oflehfffcfgohboepehdiejebjhlgbhn?label=version)](https://chromewebstore.google.com/detail/subtitle-scaler/oflehfffcfgohboepehdiejebjhlgbhn)
 
 Disney+ pins caption font size to a fixed preset ladder in `px` rather than to the
 size of the video, so subtitles are oversized in a small window and too small on a
