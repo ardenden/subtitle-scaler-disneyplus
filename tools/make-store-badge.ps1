@@ -73,20 +73,20 @@ $white = New-Object System.Drawing.SolidBrush ([System.Drawing.Color]::White)
 # the top-right corner. Track it out to the same width — the same trick the App
 # Store and Microsoft Store badges use — so the block reads as a unit.
 function Write-Tracked($graphics, $text, $font, $brush, $x, $y, $targetWidth, $format) {
-  $chars = $text.ToCharArray()
-  $natural = 0.0
-  $widths = @()
-  foreach ($ch in $chars) {
-    $w = $graphics.MeasureString([string]$ch, $font, [int]::MaxValue, $format).Width
-    $widths += $w
-    $natural += $w
-  }
-  $gaps = [Math]::Max($chars.Length - 1, 1)
+  # Positions come from measuring successive prefixes of the whole string, not
+  # from summing individual characters. Per-character widths include each
+  # glyph's side bearings, so they add up to more than the string actually
+  # occupies and the line lands short of the target.
+  $n = $text.Length
+  $natural = $graphics.MeasureString($text, $font, [int]::MaxValue, $format).Width
+  $gaps = [Math]::Max($n - 1, 1)
   $extra = [Math]::Max($targetWidth - $natural, 0) / $gaps
-  $cursor = [single]$x
-  for ($i = 0; $i -lt $chars.Length; $i++) {
-    $graphics.DrawString([string]$chars[$i], $font, $brush, $cursor, $y, $format)
-    $cursor += $widths[$i] + $extra
+
+  for ($i = 0; $i -lt $n; $i++) {
+    $prefix = if ($i -eq 0) { 0.0 } else {
+      $graphics.MeasureString($text.Substring(0, $i), $font, [int]::MaxValue, $format).Width
+    }
+    $graphics.DrawString([string]$text[$i], $font, $brush, ($x + $prefix + $extra * $i), $y, $format)
   }
 }
 
