@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 <a href="https://chromewebstore.google.com/detail/subtitle-scaler/oflehfffcfgohboepehdiejebjhlgbhn">
-  <img src="assets/chrome-web-store-badge.png" width="262" alt="Download from the Chrome Web Store">
+  <img src="assets/chrome-web-store-badge.png" width="236" alt="Download from the Chrome Web Store">
 </a>
 
 Disney+ pins caption font size to a fixed preset ladder in `px` rather than to the
