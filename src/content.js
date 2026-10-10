@@ -16,7 +16,6 @@
 (() => {
   const CUE_ATTR = 'data-subscale-cue';
   const REGION_ATTR = 'data-subscale-region';
-  const BG_ATTR = 'data-subscale-bg';
   const CLEAR_ATTR = 'data-subscale-clear';
   const BOX_ATTR = 'data-subscale-box';
 
@@ -42,7 +41,10 @@
   let lastFullScan = 0;
   let nativeStyleEl = null;
   let resizeObserver = null;
+  let mutationObserver = null;
   let sweepQueued = false;
+  let cssText = null;
+  const shadowStyles = new WeakMap(); // ShadowRoot -> our <style> inside it
 
   const status = {
     path: 'none', // 'dom' | 'native' | 'none'
@@ -161,6 +163,27 @@
   const INTERACTIVE = 'button,input,select,textarea,a[href],video,svg,[role="button"],[role="slider"]';
   const CHROME_HINT = '[class*="control" i],[class*="Control"],[role="toolbar"],[class*="scrubber" i]';
 
+  const MODAL = 'dialog,[role="dialog"],[aria-modal="true"]';
+
+  /**
+   * parentElement, but continuing through shadow boundaries to the host. The
+   * player is nested Lit components, so a plain parentElement walk stops two or
+   * three levels up — well short of the panel or dialog that gives away that a
+   * piece of text isn't a caption.
+   */
+  function composedParent(node) {
+    return node.parentElement || node.getRootNode().host || null;
+  }
+
+  /** The subtitle styling panel's preview text sits over the video and passes
+   *  every position check. Nothing inside a modal is a caption. */
+  function inModal(el) {
+    for (let node = el; node; node = composedParent(node)) {
+      if (node.matches(MODAL)) return true;
+    }
+    return false;
+  }
+
   function hasOwnText(el) {
     for (const n of el.childNodes) {
       if (n.nodeType === Node.TEXT_NODE && n.nodeValue.trim()) return true;
@@ -185,7 +208,7 @@
       for (const child of node.children) {
         if (child.matches(INTERACTIVE)) return true;
       }
-      node = node.parentElement;
+      node = composedParent(node);
     }
     return false;
   }
@@ -221,6 +244,7 @@
     if (cy < box.top + box.height * 0.4) return 'above-caption-zone';
     if (cy > box.bottom) return 'below-video';
 
+    if (inModal(el)) return 'modal';
     if (isPlayerChrome(el)) return 'player-chrome';
     // Last, because it's the most expensive check and by here few candidates
     // remain. Captions never scroll; episode lists and detail panels do.
@@ -229,12 +253,12 @@
   }
 
   /** Overlay panels — the episodes pull-up, details — scroll. Captions don't. */
-  function inScrollable(el, levels = 6) {
+  function inScrollable(el, levels = 8) {
     let node = el;
     for (let i = 0; i < levels && node && node !== document.body; i++) {
       const cs = getComputedStyle(node);
       if (/auto|scroll/.test(cs.overflowY) || /auto|scroll/.test(cs.overflowX)) return true;
-      node = node.parentElement;
+      node = composedParent(node);
     }
     return false;
   }
@@ -404,6 +428,25 @@
 
   /* ------------------------------------------------------------ stamping */
 
+  /**
+   * The box around a whole caption: the nearest ancestor that isn't inline.
+   * The player renders each line as an inline span, inside an inline cue span,
+   * inside a shrink-to-fit inline-block window. Inline boxes ignore max-width,
+   * so the window is the first thing a width cap can act on — and painting the
+   * background there gives one box per caption. Per-line backgrounds sit on
+   * separate line boxes that overlap by a sliver, which shows as a darker
+   * stripe at any partial opacity.
+   */
+  function captionBox(el) {
+    let node = el.parentElement;
+    for (let i = 0; i < 4 && node; i++) {
+      if (node.hasAttribute(REGION_ATTR)) break;
+      if (getComputedStyle(node).display !== 'inline') return node;
+      node = node.parentElement;
+    }
+    return el.parentElement || el;
+  }
+
   function clearAncestorBackgrounds(cues, region) {
     for (const el of cleared) el.removeAttribute(CLEAR_ATTR);
     cleared.clear();
@@ -411,8 +454,11 @@
     for (const cue of cues) {
       let node = cue.parentElement;
       for (let i = 0; i < 8 && node; i++) {
-        node.setAttribute(CLEAR_ATTR, '');
-        cleared.add(node);
+        // The caption box carries our background; clearing it would hide it.
+        if (!boxed.has(node)) {
+          node.setAttribute(CLEAR_ATTR, '');
+          cleared.add(node);
+        }
         if (node === region) break;
         node = node.parentElement;
       }
@@ -443,10 +489,7 @@
   }
 
   function clearStamps() {
-    for (const el of stamped) {
-      el.removeAttribute(CUE_ATTR);
-      el.removeAttribute(BG_ATTR);
-    }
+    for (const el of stamped) el.removeAttribute(CUE_ATTR);
     stamped.clear();
     for (const el of cleared) el.removeAttribute(CLEAR_ATTR);
     cleared.clear();
@@ -467,7 +510,6 @@
     for (const el of stamped) {
       if (!cues.includes(el)) {
         el.removeAttribute(CUE_ATTR);
-        el.removeAttribute(BG_ATTR);
         stamped.delete(el);
       }
     }
@@ -477,22 +519,14 @@
 
     for (const el of cues) {
       el.setAttribute(CUE_ATTR, '');
-      // Stamped regardless of opacity: at 0 the variable resolves to
-      // `transparent`, which *overrides* the player's own box. Dropping the
-      // attribute instead would just restore Disney+'s dark background.
       if (isOutermost(el, cues)) {
-        el.setAttribute(BG_ATTR, '');
-        // The parent is the positioning container; capping its width is what
-        // caps line length, since inline cues ignore max-width themselves.
-        if (el.parentElement) {
-          el.parentElement.setAttribute(BOX_ATTR, '');
-          boxed.add(el.parentElement);
-        }
-      } else {
-        el.removeAttribute(BG_ATTR);
+        const box = captionBox(el);
+        box.setAttribute(BOX_ATTR, '');
+        boxed.add(box);
       }
       stamped.add(el);
     }
+    adoptShadowRoots(cues);
 
     if (cues.length) {
       const box = contentBox(video);
@@ -515,6 +549,46 @@
       status.sample = null;
     }
     status.cueCount = cues.length;
+  }
+
+  /* -------------------------------------------------------- shadow roots */
+
+  /**
+   * The player renders captions inside Lit shadow roots. The manifest
+   * stylesheet only applies to the document, so the stamped attributes match
+   * nothing in there — the custom properties inherit through, but no rule uses
+   * them. Copy the stylesheet into every shadow root that holds a cue.
+   *
+   * The document MutationObserver is just as blind to what happens inside, so
+   * each such root is observed too; otherwise cue swaps would only be caught by
+   * the interval fallback and flash at the player's size first.
+   */
+  function adoptShadowRoots(cues) {
+    if (!cssText) return;
+    for (const el of cues) {
+      const root = el.getRootNode();
+      if (!(root instanceof ShadowRoot)) continue;
+      const existing = shadowStyles.get(root);
+      if (existing?.parentNode === root) continue; // a re-render can drop it
+      const style = document.createElement('style');
+      style.dataset.subscale = 'shadow';
+      style.textContent = cssText;
+      root.appendChild(style);
+      shadowStyles.set(root, style);
+      mutationObserver?.observe(root, { childList: true, subtree: true, characterData: true });
+    }
+  }
+
+  function loadCss() {
+    fetch(chrome.runtime.getURL('src/subtitles.css'))
+      .then((res) => res.text())
+      .then((text) => {
+        cssText = text;
+        queueSweep();
+      })
+      .catch((err) => {
+        status.error = `stylesheet: ${err?.message || err}`;
+      });
   }
 
   /* -------------------------------------------------------- native <track> */
@@ -666,6 +740,7 @@
 
   function init() {
     chrome.storage.sync.get(DEFAULTS, (stored) => applySettings(stored));
+    loadCss();
 
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== 'sync') return;
@@ -675,7 +750,8 @@
     });
 
     // Cues are re-created on every swap, so re-stamping is the normal path.
-    new MutationObserver(queueSweep).observe(document.documentElement, {
+    mutationObserver = new MutationObserver(queueSweep);
+    mutationObserver.observe(document.documentElement, {
       childList: true,
       subtree: true,
       characterData: true,

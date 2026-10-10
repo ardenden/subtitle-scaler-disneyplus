@@ -5,32 +5,45 @@
  */
 
 [data-subscale-cue],
-[data-subscale-cue] * {
+[data-subscale-cue] *,
+[data-subscale-box],
+[data-subscale-box] * {
   font-size: var(--subscale-size, inherit) !important;
   line-height: 1.25 !important;
   text-shadow: var(--subscale-shadow, none) !important;
 }
 
+/* The box wrappers are sized too: the player sets its own px size on them, and
+   that still sets the height of each line box (and the newline between lines)
+   even when the text inside is resized. */
+
 /* Deliberately no white-space override. Disney+ puts real newlines in the cue
-   text and sets `pre-wrap` on the container to honour them — those are the
+   text and sets `pre-line` on the container to honour them — those are the
    line breaks authored in the subtitle file. Forcing `normal` collapsed them
    into spaces, turning two comfortable lines into one long one that ran past
    the edge of the picture. */
 
-/* Present on every outermost cue, including at 0 opacity — the variable
-   resolves to `transparent` there, which is what actually suppresses the
-   player's own background box. */
-[data-subscale-cue][data-subscale-bg] {
+/* The caption box: the shrink-to-fit window around all of a caption's lines.
+   One background for the whole caption rather than one per line — per-line
+   boxes overlap by a sliver, which shows as a darker stripe.
+
+   Always set, including at 0 opacity: the variable resolves to `transparent`
+   there, which is what actually suppresses the player's own box.
+
+   The width cap goes here because the lines are inline spans, which ignore
+   max-width. It has to be a user setting: Disney+ bakes 4:3 pillarbox bars into
+   a 16:9 encode, so no amount of metadata reveals where the picture ends. */
+[data-subscale-box] {
   background-color: var(--subscale-bg, transparent) !important;
-  padding: 0.08em 0.32em !important;
-  border-radius: 0.12em !important;
-  -webkit-box-decoration-break: clone;
-  box-decoration-break: clone;
+  max-width: var(--subscale-maxw, none) !important;
+  padding: 0.1em 0.35em !important;
+  border-radius: 0.15em !important;
 }
 
-/* One background box, not one per nested <span> in an italicised line. */
-[data-subscale-cue][data-subscale-bg] * {
+/* The player paints a background (and padding) on each line. */
+[data-subscale-box] * {
   background-color: transparent !important;
+  padding: 0 !important;
 }
 
 /* The player's own background box, painted on a wrapper between the text and
@@ -45,13 +58,3 @@
   max-height: none !important;
   overflow: visible !important;
 }
-
-/* The cue's own positioning container — absolutely positioned and centred with
-   translateX, per the live markup. Constraining it here is what actually caps
-   line length, since the cue spans themselves are inline and ignore max-width.
-   The limit has to be a user setting: Disney+ bakes 4:3 pillarbox bars into a
-   16:9 encode, so no amount of metadata reveals where the picture really ends. */
-[data-subscale-box] {
-  max-width: var(--subscale-maxw, none) !important;
-}
-

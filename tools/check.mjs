@@ -43,6 +43,7 @@ check(
 const patterns = [
   ...(manifest.host_permissions ?? []),
   ...(manifest.content_scripts ?? []).flatMap((cs) => cs.matches ?? []),
+  ...(manifest.web_accessible_resources ?? []).flatMap((war) => war.matches ?? []),
 ];
 for (const pattern of patterns) {
   check(
@@ -56,6 +57,7 @@ check(patterns.length > 0, 'no match patterns declared');
 
 const referenced = [
   ...(manifest.content_scripts ?? []).flatMap((cs) => [...(cs.js ?? []), ...(cs.css ?? [])]),
+  ...(manifest.web_accessible_resources ?? []).flatMap((war) => war.resources ?? []),
   ...(manifest.action?.default_popup ? [manifest.action.default_popup] : []),
   ...Object.values(manifest.icons ?? {}),
 ];
